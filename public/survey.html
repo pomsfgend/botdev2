@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Опрос</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #111;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .survey-container {
+            max-width: 100%;
+            width: 600px;
+            padding: 20px;
+            background-color: #222;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .question {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            line-height: 1.4;
+        }
+        .option, .input-field, .button {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin: 10px auto;
+            background-color: #0056b3;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .option:hover, .button:hover {
+            background-color: #004080;
+        }
+        .option.selected {
+            background-color: #007bff;
+        }
+        .input-field {
+            background-color: #333;
+            border: 1px solid #444;
+            color: #fff;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #333;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 20px;
+            display: none;
+        }
+        .progress {
+            width: 0;
+            height: 10px;
+            background-color: #0056b3;
+            transition: width 0.3s;
+        }
+        .edit-mode {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+        .edit-mode.active {
+            display: flex;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .checkbox-container label {
+            margin-left: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        @media (max-width: 600px) {
+            .survey-container {
+                width: 90%;
+                padding: 15px;
+            }
+            .question {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="survey-container" id="surveyContainer">
+        <div id="privacySection" class="checkbox-container">
+            <input type="checkbox" id="privacyCheckbox">
+            <label for="privacyCheckbox">Я прочитал и согласен с <a href="/privacy" target="_blank">политикой конфиденциальности</a></label>
+            <button class="button" id="continueButton1" disabled>Продолжить</button>
+        </div>
+
+        <div id="instructionSection" class="hidden">
+            <p>Перед продолжением, пожалуйста, ознакомьтесь с инструкцией: отвечайте максимально честно и открыто. Это важно для нас.</p>
+            <div class="checkbox-container">
+                <input type="checkbox" id="instructionCheckbox">
+                <label for="instructionCheckbox">Я прочитал инструкцию и готов приступить к опросу</label>
+                <button class="button" id="startSurveyButton" disabled>Начать опрос</button>
+            </div>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress" id="progress"></div>
+        </div>
+        <div id="questionContainer" class="hidden"></div>
+        <button class="button hidden" id="nextButton">Продолжить</button>
+        <button class="button hidden" id="editButton" style="display:none;">Редактировать ответы</button>
+        <button class="button hidden" id="backToMainButton">На главную</button>
+    </div>
+
+    <div class="survey-container edit-mode" id="editModeContainer">
+        <h2>Редактирование ответов</h2>
+        <div id="editQuestionContainer"></div>
+        <button class="button" id="saveEditButton">Сохранить и выйти</button>
+    </div>
+
+    <script>
+        const token = prompt("Введите токен авторизации из Telegram:");
+        
+        const questions = {
+            "Личная информация": [
+                { question: "1. Ваше имя?", options: [], allowMultiple: false },
+                { question: "2. Ваш пол?", options: ["Мужской", "Женский", "Другой"], allowMultiple: false },
+                { question: "3. Дата рождения (в формате 00.00.0000)?", options: [], allowMultiple: false },
+                { question: "4. Ваш контактный номер телефона?", options: [], allowMultiple: false },
+                { question: "5. Ваш электронный адрес?", options: [], allowMultiple: false },
+                { question: "6. Ваш ID в Telegram?", options: [], allowMultiple: false },
+                { question: "7. Ваше семейное положение?", options: ["Женат", "Холост", "В разводе", "Состою в отношениях"], allowMultiple: false },
+                { question: "8. Вы владеете иностранными языками?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "9. Какой у вас опыт в IT?", options: ["Новичок", "Уверенный пользователь", "Профессионал"], allowMultiple: true },
+                { question: "10. На каких платформах вы работали?", options: ["Windows", "macOS", "Linux", "Другие"], allowMultiple: true }
+            ],
+            "Опыт и навыки": [
+                { question: "11. Какие технологии вы знаете?", options: ["JavaScript", "Python", "Java", "C++", "Другие"], allowMultiple: true },
+                { question: "12. Какой ваш уровень владения английским языком?", options: ["Начальный", "Средний", "Продвинутый", "Свободное владение"], allowMultiple: false },
+                { question: "13. Работали ли вы с Agile или Scrum методологиями?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "14. Есть ли у вас опыт работы в международных командах?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "15. Вы используете Git или другие системы контроля версий?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "16. Как вы справляетесь с трудными задачами?", options: ["Анализирую", "Консультируюсь", "Действую"], allowMultiple: false },
+                { question: "17. Вы предпочитаете работать в команде или самостоятельно?", options: ["В команде", "Самостоятельно"], allowMultiple: false },
+                { question: "18. Как вы обучаетесь новым навыкам?", options: ["Онлайн-курсы", "Книги", "Практика", "Семинары"], allowMultiple: true },
+                { question: "19. Как вы оцениваете свои лидерские качества?", options: ["Высокие", "Средние", "Низкие"], allowMultiple: false },
+                { question: "20. Как вы принимаете решения в стрессовых ситуациях?", options: ["Холодный расчет", "Интуиция", "Консультация"], allowMultiple: false }
+            ],
+            "Общие вопросы": [
+                { question: "21. Вы готовы работать удаленно?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "22. Вы согласны с нашими условиями работы?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "23. Готовы ли вы к обучению новым технологиям?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "24. Вам комфортно работать в условиях неопределенности?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "25. Готовы ли вы к командировкам?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "26. Вы заинтересованы в карьерном росте?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "27. Вы имеете опыт работы в команде?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "28. Вы готовы к гибкому графику?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "29. Вы используете Agile методологии?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "30. Вы знакомы с DevOps практиками?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "31. Вы имеете опыт работы с клиентами?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "32. Вы готовы работать в условиях стресса?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "33. Вы открыты для новых идей?", options: ["Да", "Нет"], allowMultiple: false },
+                 { question: "34. Вы готовы делиться знаниями?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "35. Вы имеете опыт наставничества?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "36. Вы готовы к изменениям в проекте?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "37. Вы имеете опыт работы с API?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "38. Вы заинтересованы в долгосрочных проектах?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "39. Вы владеете навыками презентации?", options: ["Да", "Нет"], allowMultiple: false },
+                { question: "40. Вы имеете опыт ведения переговоров?", options: ["Да", "Нет"], allowMultiple: false }
+            ],
+            "Дополнительные вопросы": [
+                { question: "41. Что вас мотивирует в работе?", options: ["Успех", "Деньги", "Развитие", "Признание"], allowMultiple: true },
+                { question: "42. Какой ваш подход к решению проблем?", options: ["Стратегический", "Тактический", "Аналитический"], allowMultiple: false },
+                { question: "43. Как вы справляетесь с неудачами?", options: ["Анализ", "Перерыв", "Продолжение"], allowMultiple: false },
+                { question: "44. Что для вас значит качество работы?", options: ["Точность", "Эффективность", "Креативность"], allowMultiple: false },
+                { question: "45. Как вы строите отношения с коллегами?", options: ["Дружелюбие", "Профессионализм", "Дистанция"], allowMultiple: false },
+                { question: "46. Как вы настраиваете свою команду на успех?", options: ["Мотивация", "Планирование", "Поддержка"], allowMultiple: true },
+                { question: "47. Как вы обучаетесь новым навыкам?", options: ["Онлайн-курсы", "Книги", "Практика"], allowMultiple: true },
+                { question: "48. Как вы оцениваете свои лидерские качества?", options: ["Высокие", "Средние", "Низкие"], allowMultiple: false },
+                { question: "49. Какой ваш самый успешный проект?", options: [], allowMultiple: false },
+                { question: "50. Как вы решаете конфликты в коллективе?", options: ["Обсуждение", "Игнорирование", "Посредничество"], allowMultiple: false }
+            ],
+            "Личностные качества": [
+                { question: "51. Как вы оцениваете свои коммуникативные навыки?", options: ["Высокие", "Средние", "Низкие"], allowMultiple: false },
+                { question: "52. Как вы относитесь к критике?", options: ["Конструктивно", "Негативно", "Спокойно"], allowMultiple: false },
+                { question: "53. Как вы мотивируете себя на работу?", options: ["Цели", "Награды", "Развитие"], allowMultiple: true },
+                { question: "54. Что для вас важно в работе?", options: ["Качество", "Эффективность", "Творчество"], allowMultiple: true },
+                { question: "55. Как вы справляетесь с конфликтными ситуациями?", options: ["Обсуждение", "Игнорирование", "Посредничество"], allowMultiple: false },
+                { question: "56. Какие у вас хобби и увлечения?", options: ["Спорт", "Чтение", "Музыка", "Путешествия"], allowMultiple: true },
+                { question: "57. Как вы видите свое профессиональное развитие?", options: ["Карьера", "Навыки", "Проекты"], allowMultiple: true },
+                { question: "58. Что вы делаете для поддержания здорового баланса между работой и личной жизнью?", options: ["Планирование", "Отдых", "Спорт"], allowMultiple: true },
+                { question: "59. Как вы относитесь к командной работе?", options: ["Положительно", "Нейтрально", "Отрицательно"], allowMultiple: false },
+                { question: "60. Как вы справляетесь с многозадачностью?", options: ["Приоритеты", "Планирование", "Фокусировка"], allowMultiple: false },
+                { question: "61. Как вы определяете приоритеты в работе?", options: ["Срочность", "Важность", "Ресурсы"], allowMultiple: false },
+                { question: "62. Как вы относитесь к обучению и саморазвитию?", options: ["Положительно", "Нейтрально", "Отрицательно"], allowMultiple: false },
+                { question: "63. Какой ваш самый большой профессиональный успех?", options: [], allowMultiple: false },
+                { question: "64. Какой ваш самый большой профессиональный провал?", options: [], allowMultiple: false },
+                { question: "65. Как вы видите себя через 5 лет?", options: ["Карьера", "Навыки", "Проекты"], allowMultiple: true },
+                { question: "66. Что для вас значит быть лидером?", options: ["Ответственность", "Вдохновение", "Управление"], allowMultiple: false },
+                { question: "67. Как вы относитесь к изменениям?", options: ["Положительно", "Нейтрально", "Отрицательно"], allowMultiple: false },
+                { question: "68. Что вас вдохновляет в жизни?", options: ["Цели", "Люди", "Опыт"], allowMultiple: true },
+                { question: "69. Как вы определяете успех?", options: ["Достижения", "Признание", "Удовлетворение"], allowMultiple: true },
+                { question: "70. Как вы оцениваете свои организационные способности?", options: ["Высокие", "Средние", "Низкие"], allowMultiple: false },
+                { question: "71. Как вы относитесь к новым вызовам?", options: ["Положительно", "Нейтрально", "Отрицательно"], allowMultiple: false },
+                { question: "72. Как вы справляетесь с критикой?", options: ["Конструктивно", "Негативно", "Спокойно"], allowMultiple: false },
+                { question: "73. Как вы поддерживаете мотивацию в команде?", options: ["Мотивация", "Планирование", "Поддержка"], allowMultiple: true },
+                { question: "74. Как вы оцениваете свои навыки решения проблем?", options: ["Высокие", "Средние", "Низкие"], allowMultiple: false },
+                { question: "75. Как вы адаптируетесь к изменениям?", options: ["Быстро", "Медленно", "Спокойно"], allowMultiple: false },
+                { question: "76. Как вы планируете свою карьеру?", options: ["Карьера", "Навыки", "Проекты"], allowMultiple: true },
+                { question: "77. Как вы видите роль технологии в вашей работе?", options: ["Важная", "Необходимая", "Второстепенная"], allowMultiple: false },
+                { question: "78. Как вы используете обратную связь для улучшения?", options: ["Анализ", "Корректировка", "Обучение"], allowMultiple: true },
+                { question: "79. Как вы определяете свои сильные и слабые стороны?", options: ["Анализ", "Обратная связь", "Самоанализ"], allowMultiple: false },
+                { question: "80. Как вы управляете стрессом?", options: ["Отдых", "Спорт", "Медитация"], allowMultiple: false },
+                { question: "81. Как вы развиваетесь профессионально?", options: ["Курсы", "Проекты", "Обучение"], allowMultiple: true },
+                { question: "82. Как вы оцениваете свои коммуникативные навыки?", options: ["Высокие", "Средние", "Низкие"], allowMultiple: false },
+                { question: "83. Как вы относитесь к критике?", options: ["Конструктивно", "Негативно", "Спокойно"], allowMultiple: false },
+                { question: "84. Как вы мотивируете себя на работу?", options: ["Цели", "Награды", "Развитие"], allowMultiple: true },
+                { question: "85. Что для вас важно в работе?", options: ["Качество", "Эффективность", "Творчество"], allowMultiple: true },
+                { question: "86. Как вы справляетесь с конфликтными ситуациями?", options: ["Обсуждение", "Игнорирование", "Посредничество"], allowMultiple: false },
+                { question: "87. Какие у вас хобби и увлечения?", options: ["Спорт", "Чтение", "Музыка", "Путешествия"], allowMultiple: true },
+                { question: "88. Как вы видите свое профессиональное развитие?", options: ["Карьера", "Навыки", "Проекты"], allowMultiple: true },
+                { question: "89. Что вы делаете для поддержания здорового баланса между работой и личной жизнью?", options: ["Планирование", "Отдых", "Спорт"], allowMultiple: true },
+                { question: "90. Как вы относитесь к командной работе?", options: ["Положительно", "Нейтрально", "Отрицательно"], allowMultiple: false },
+                { question: "91. Как вы справляетесь с многозадачностью?", options: ["Приоритеты", "Планирование", "Фокусировка"], allowMultiple: false },
+                { question: "92. Как вы определяете приоритеты в работе?", options: ["Срочность", "Важность", "Ресурсы"], allowMultiple: false },
+                { question: "93. Как вы относитесь к обучению и саморазвитию?", options: ["Положительно", "Нейтрально", "Отрицательно"], allowMultiple: false },
+                { question: "94. Какой ваш самый большой профессиональный успех?", options: [], allowMultiple: false },
+                { question: "95. Какой ваш самый большой профессиональный провал?", options: [], allowMultiple: false },
+                { question: "96. Как вы видите себя через 5 лет?", options: ["Карьера", "Навыки", "Проекты"], allowMultiple: true },
+                { question: "97. Что для вас значит быть лидером?", options: ["Ответственность", "Вдохновение", "Управление"], allowMultiple: false },
+                { question: "98. Как вы относитесь к изменениям?", options: ["Положительно", "Нейтрально", "Отрицательно"], allowMultiple: false },
+                { question: "99. Что вас вдохновляет в жизни?", options: ["Цели", "Люди", "Опыт"], allowMultiple: true },
+                { question: "100. Как вы определяете успех?", options: ["Достижения", "Признание", "Удовлетворение"], allowMultiple: true }
+            ]
+        };
+
+        const questionContainer = document.getElementById('questionContainer');
+        const nextButton = document.getElementById('nextButton');
+        const progressElement = document.getElementById('progress');
+        const editButton = document.getElementById('editButton');
+        const editModeContainer = document.getElementById('editModeContainer');
+        const editQuestionContainer = document.getElementById('editQuestionContainer');
+        const saveEditButton = document.getElementById('saveEditButton');
+        const privacyCheckbox = document.getElementById('privacyCheckbox');
+        const continueButton1 = document.getElementById('continueButton1');
+        const instructionCheckbox = document.getElementById('instructionCheckbox');
+        const startSurveyButton = document.getElementById('startSurveyButton');
+        const instructionSection = document.getElementById('instructionSection');
+        const progressBar = document.getElementById('progressBar');
+        const backToMainButton = document.getElementById('backToMainButton');
+
+        let answers = {};
+        let currentQuestionIndex = 0;
+        const sectionNames = Object.keys(questions);
+        let currentSectionIndex = 0;
+        let currentQuestions = questions[sectionNames[currentSectionIndex]];
+        const totalQuestions = Object.values(questions).flat().length;
+
+        function loadUserData() {
+            fetch('/auth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    answers = data.data.answers;
+                    currentSectionIndex = data.data.currentSectionIndex || 0;
+                    currentQuestionIndex = data.data.currentQuestionIndex || 0;
+                    if (data.data.readPrivacy) {
+                        privacyCheckbox.checked = true;
+                        continueButton1.disabled = false;
+                        document.getElementById('privacySection').style.display = 'none';
+                        instructionSection.classList.remove('hidden');
+                    }
+                    if (data.data.readInstructions) {
+                        instructionCheckbox.checked = true;
+                        startSurveyButton.disabled = false;
+                        instructionSection.classList.add('hidden');
+                        startSurvey();
+                    }
+                    updateProgress();
+                    if (data.data.completed) {
+                        questionContainer.innerHTML = '<p>Вы успешно прошли опрос. Ожидайте обратной связи. С вами свяжутся в ближайшее время.</p>';
+                        editButton.style.display = 'block';
+                        nextButton.style.display = 'none';
+                    }
+                } else {
+                    alert('Неверный токен. Попробуйте еще раз.');
+                }
+            });
+        }
+
+        function startSurvey() {
+            document.getElementById('privacySection').classList.add('hidden');
+            instructionSection.classList.add('hidden');
+            questionContainer.classList.remove('hidden');
+            nextButton.classList.remove('hidden');
+            progressBar.style.display = 'block';
+            backToMainButton.classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length) {
+                currentSectionIndex++;
+                if (currentSectionIndex < sectionNames.length) {
+                    currentQuestions = questions[sectionNames[currentSectionIndex]];
+                    currentQuestionIndex = 0;
+                    renderQuestion();
+                } else {
+                    completeSurvey();
+                    return;
+                }
+            }
+
+            const questionObj = currentQuestions[currentQuestionIndex];
+            questionContainer.innerHTML = `<div class="question">${questionObj.question}</div>`;
+
+            if (questionObj.options.length > 0) {
+                if (questionObj.allowMultiple) {
+                    const selectedOptions = new Set(answers[questionObj.question] || []);
+                    questionContainer.innerHTML += '<p>Выберите один или несколько вариантов:</p>';
+                    questionObj.options.forEach(option => {
+                        const optionButton = document.createElement('button');
+                        optionButton.className = 'option';
+                        optionButton.textContent = option;
+                        optionButton.classList.toggle('selected', selectedOptions.has(option));
+                        optionButton.onclick = () => {
+                            if (selectedOptions.has(option)) {
+                                selectedOptions.delete(option);
+                                optionButton.classList.remove('selected');
+                            } else {
+                                selectedOptions.add(option);
+                                optionButton.classList.add('selected');
+                            }
+                        };
+                        questionContainer.appendChild(optionButton);
+                    });
+                    const customInput = document.createElement('input');
+                    customInput.className = 'input-field';
+                    customInput.placeholder = 'Введите свой ответ';
+                    customInput.value = (answers[questionObj.question] && answers[questionObj.question].find(v => !questionObj.options.includes(v))) || '';
+                    questionContainer.appendChild(customInput);
+
+                    nextButton.style.display = 'block';
+                    nextButton.onclick = () => {
+                        answers[questionObj.question] = Array.from(selectedOptions);
+                        if (customInput.value) {
+                            answers[questionObj.question].push(customInput.value);
+                        }
+                        currentQuestionIndex++;
+                        updateProgress();
+                        saveUserData();
+                        renderQuestion();
+                    };
+                } else {
+                    questionObj.options.forEach(option => {
+                        const optionButton = document.createElement('button');
+                        optionButton.className = 'option';
+                        optionButton.textContent = option;
+                        optionButton.classList.toggle('selected', answers[questionObj.question] === option);
+                        optionButton.onclick = () => {
+                            answers[questionObj.question] = option;
+                            currentQuestionIndex++;
+                            updateProgress();
+                            saveUserData();
+                            renderQuestion();
+                        };
+                        questionContainer.appendChild(optionButton);
+                    });
+                    nextButton.style.display = 'none';
+                }
+            } else {
+                const inputField = document.createElement('input');
+                inputField.className = 'input-field';
+                inputField.placeholder = 'Введите ответ';
+                inputField.value = answers[questionObj.question] || '';
+                inputField.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        answers[questionObj.question] = inputField.value;
+                        currentQuestionIndex++;
+                        updateProgress();
+                        saveUserData();
+                        renderQuestion();
+                    }
+                };
+                questionContainer.appendChild(inputField);
+                nextButton.style.display = 'block';
+                nextButton.onclick = () => {
+                    answers[questionObj.question] = inputField.value;
+                    currentQuestionIndex++;
+                    updateProgress();
+                    saveUserData();
+                    renderQuestion();
+                };
+            }
+        }
+
+        function updateProgress() {
+            const progress = (Object.keys(answers).length / totalQuestions) * 100;
+            progressElement.style.width = progress + '%';
+        }
+
+        function completeSurvey() {
+            fetch('/submit-survey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token, answers, completed: true, readPrivacy: privacyCheckbox.checked, readInstructions: instructionCheckbox.checked })
+            }).then(response => response.json())
+              .then(data => {
+                questionContainer.innerHTML = '<p>' + data.message + '</p>';
+                nextButton.style.display = 'none';
+                editButton.style.display = 'block';
+                backToMainButton.classList.remove('hidden');
+            });
+        }
+
+        function saveUserData() {
+            fetch('/save-survey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token, answers, currentSectionIndex, currentQuestionIndex, readPrivacy: privacyCheckbox.checked, readInstructions: instructionCheckbox.checked })
+            });
+        }
+
+        function showEditMode() {
+            document.getElementById('surveyContainer').style.display = 'none';
+            editModeContainer.classList.add('active');
+            editQuestionContainer.innerHTML = '';
+            Object.entries(answers).forEach(([question, answer]) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.innerHTML = `<strong>${question}</strong>: ${Array.isArray(answer) ? answer.join(', ') : answer}`;
+                const editButton = document.createElement('button');
+                editButton.className = 'button';
+                editButton.textContent = 'Редактировать';
+                editButton.onclick = () => editAnswer(question, answer);
+                questionDiv.appendChild(editButton);
+                editQuestionContainer.appendChild(questionDiv);
+            });
+        }
+
+        function editAnswer(question, currentAnswer) {
+            const editDiv = document.createElement('div');
+            editDiv.innerHTML = `<div class="question"><strong>${question}</strong></div>`;
+            const inputField = document.createElement('input');
+            inputField.className = 'input-field';
+            inputField.value = Array.isArray(currentAnswer) ? currentAnswer.join(', ') : currentAnswer;
+            const saveButton = document.createElement('button');
+            saveButton.className = 'button';
+            saveButton.textContent = 'Сохранить';
+            saveButton.onclick = () => {
+                answers[question] = inputField.value.split(',').map(val => val.trim());
+                editDiv.remove();
+                showEditMode();
+            };
+            editDiv.appendChild(inputField);
+            editDiv.appendChild(saveButton);
+            editQuestionContainer.innerHTML = '';
+            editQuestionContainer.appendChild(editDiv);
+        }
+
+        saveEditButton.onclick = () => {
+            fetch('/submit-survey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token, answers, completed: true })
+            }).then(response => response.json())
+              .then(data => {
+                editModeContainer.classList.remove('active');
+                document.getElementById('surveyContainer').style.display = 'block';
+                questionContainer.innerHTML = '<p>' + data.message + '</p>';
+            });
+        };
+
+        privacyCheckbox.addEventListener('change', () => {
+            continueButton1.disabled = !privacyCheckbox.checked;
+        });
+
+        continueButton1.onclick = () => {
+            document.getElementById('privacySection').classList.add('hidden');
+            instructionSection.classList.remove('hidden');
+        };
+
+        instructionCheckbox.addEventListener('change', () => {
+            startSurveyButton.disabled = !instructionCheckbox.checked;
+        });
+
+        startSurveyButton.onclick = () => {
+            startSurvey();
+        };
+
+        backToMainButton.onclick = () => {
+            window.location.href = '/';
+        };
+
+        loadUserData();
+    </script>
+</body>
+</html>

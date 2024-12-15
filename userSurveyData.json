@@ -1,0 +1,46 @@
+{
+  "898538379": {
+    "answers": {},
+    "completed": false,
+    "readPrivacy": false,
+    "readInstructions": false,
+    "currentSectionIndex": 0,
+    "currentQuestionIndex": 0,
+    "token": "9c2135f63a36e788a4cdc48ee043a71f"
+  },
+  "0baf01cf9cb07fc49216ec664354e3925a11659b06ee8cf84309bf87ebed571b": {
+    "answers": {
+      "1. Ваше имя?": "Рома",
+      "2. Ваш пол?": "Мужской",
+      "3. Дата рождения (в формате 00.00.0000)?": "20.01.2007",
+      "4. Ваш контактный номер телефона?": "89176620167",
+      "5. Ваш электронный адрес?": "pomsfgend.9@gmail.com",
+      "6. Ваш ID в Telegram?": "@romadanilov2000",
+      "7. Ваше семейное положение?": "Холост",
+      "8. Вы владеете иностранными языками?": "Да",
+      "9. Какой у вас опыт в IT?": [
+        "Уверенный пользователь",
+        "Профессионал"
+      ],
+      "10. На каких платформах вы работали?": [
+        "Windows",
+        "macOS",
+        "Linux",
+        "Другие"
+      ],
+      "11. Какие технологии вы знаете?": [
+        "JavaScript",
+        "Python",
+        "Java",
+        "C++"
+      ],
+      "12. Какой ваш уровень владения английским языком?": "Средний",
+      "13. Работали ли вы с Agile или Scrum методологиями?": "Да"
+    },
+    "completed": false,
+    "readPrivacy": true,
+    "readInstructions": true,
+    "currentSectionIndex": 1,
+    "currentQuestionIndex": 3
+  }
+}
